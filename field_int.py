@@ -85,3 +85,47 @@ def field2_int(x2, y2, z2, dx, xnum, ynum, a, b, dy=None, A0=1, k=1, f1=1, f2=1)
                                   args=iargs)[0]/(2*pi*f2)) 
     
     return field2
+    
+class ArrayField2:
+    """
+    object for computing the field array output from a 4f confiiguration as per Mark's
+    simplified trap array proposal. 
+    """
+    
+    def __init__(self, lmbda, f1, f2, a, dx, xnum, dy=None, ynum=None, A0=1):
+        """
+        Constructor for ArrayField2
+        
+        Args:
+            lmbda: wavelength
+            f1: first focal length
+            f2: second focal length
+            a: input aperture radius
+            b: Fourier filter radius
+            z2: the distance from the second lens
+            dx: input grid aperture spacing along x
+            dy: optional. if not specified, set dy=dx
+            xnum: number of columns of apertures
+            ynum: optional. number of rows of apertures. if not specified, xnum=ynum
+        """
+        
+        self.lmbda = lmbda
+        self.k = 2*pi/lmbda
+        self.f1 = f1
+        self.f2 = f2
+        self.a = a
+        self.b = f1*3.8317/(a*k) # filter radius, where 3.8317 is the first zero of BesselJ0
+        self.dx = dx
+        self.xnum = xnum
+        self.A0 = 1
+        
+        if dy is None:
+            self.dy = dx
+        else:
+            self.dy = dy
+        
+        if ynum is None:
+            self.ynum = xnum
+        else:
+            self.ynum = ynum
+            
