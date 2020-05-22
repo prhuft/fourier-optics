@@ -78,6 +78,9 @@ class ArrayField2:
             name: the dictionary key to be added to self.fields
         """
         
+        if name in self.fields:
+            print("field with name {name} already exists. if this was in err, you may want to interupt the kernel before the field is overwritten")
+        
         xarr2,midpt,xx2,yy2 = ArrayField2.get_meshgrid(w, pts, polar=False)
         field2_z = zeros((pts,pts), complex)
         
@@ -91,10 +94,10 @@ class ArrayField2:
             times.append(time()-t0)
             avg = sum(times)/(i+1)
             print(f"y step {i}, time elapsed = {times[i]} s, estimated time remaining: {avg*(midpt - i - 1)} s")
-        field2_z = from_quadrant3(q3, field=field2_z)
+        field2_z = ArrayField2.from_quadrant3(q3, field=field2_z)
         print(f"calculated field2 in {(time()-t0)/3600} hrs")
         
-        self.field[name] = field2_z
+        self.fields[name] = field2_z
         
         
     def field2_xzgrid(self, numxpts, numzpts, wx, z2i, z2f, y2, name):
@@ -270,13 +273,13 @@ class ArrayField2:
         if field is None:
             field = zeros((2*xpts, 2*ypts), complex)
         
-        field[:midpt, :midpt] = qd3
+        field[:xmpt, :ympt] = qd3
         # qd4
+        field[:xmpt, ympt:] = flip(qd3, axis=1) 
         # qd1
-        field[:midpt, midpt:] = flip(qd3, axis=1) 
-        field[midpt:, midpt:] = flip(qd3)
+        field[xmpt:, ympt:] = flip(qd3)
         # qd2
-        field[midpt:, :midpt] = flip(qd3, axis=0)
+        field[:xmpt:, :ympt] = flip(qd3, axis=0)
         
         return field
         
