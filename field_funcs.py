@@ -47,6 +47,23 @@ def get_meshgrid(w, pts, polar=False):
         return x,midpt,rr,phi
     else:
         return x,midpt,xx,yy
+        
+def get_grid(dx,dy,xnum,ynum):
+    """
+    Retunr xpts,ypts denoting centers of pts on a regular grid
+    Args:
+        dx,dy: center-center spacing in x,y directions
+        xnum, ynum: number of columns, rows
+    Return:
+        xpts,ypts: lists of x coords,y coords for grid pts
+    """
+    xpts = []
+    ypts = []
+    for i in range(xnum):
+        for j in range(ynum):
+            xpts.append((1+i)*dy - dy*(1+ynum)/2)
+            ypts.append((1+j)*dx - dx*(1+xnum)/2)
+    return xpts, ypts
 
 def justify(arr):
     """
