@@ -169,7 +169,6 @@ def circ_mask(rgrid, radius):
                 
     return mask
     
-    
 def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, aperture=1):
     """
     Warning: this will may not work as expected if xnum or ynum is odd
@@ -219,7 +218,6 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
         
     
     smask = from_quadrant3(qd3, smask)
-    print(smask.shape)
 
     # the centroids of the apertures
     xpts, ypts = get_grid(dx,dy,xnum,ynum)
@@ -246,3 +244,67 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
     xarr = [i*res - w for i in range(pts)]
             
     return mask, xarr
+    
+def get_fourierfield(dx,dy,xnum,ynum,f1,k,a,x1pts,rr,A0=1): 
+    """
+    the analytic fourier field from a periodic aperture array
+    """
+    
+    def repeat_phase(x1,y1,dx,dy,xnum,ynum,f1,k):
+        """
+        The sinusoidal factor appearing in the Fourier plane for an input
+        field of x (y) periodicity dx (dy)
+
+        x1,y1: spatial coordinate in the Fourier plane
+        dx,dy: periodicity in x,y
+        f1: focal length of the lens
+        """
+        return (sin(xnum*k*dx*x1/(2*f1))*sin(ynum*k*dy*y1/(2*f1)) \
+                /(sin(sin(k*dx*x1/(2*f1))*sin(k*dy*y1/(2*f1)))))
+
+    pts = len(x1pts)
+    midpt = int(pts/2)
+
+    field1 = zeros((pts, pts))
+    t0 = time()
+    q3_phase = 0 + 0*1j
+    q3 = empty((midpt, midpt), complex)
+    for i in range(midpt):
+        for j in range(midpt):
+            q3_phase = repeat_phase(x1pts[j], x1pts[i], dx, dy, xnum, ynum, f1, k)
+            q3[i,j] = -1j*A0*a*j1(a*rr[i,j]*k/f1)*q3_phase/rr[i,j]
+    print(f"calculated field1 in {time()-t0} s")
+    field1 = from_quadrant3(q3)
+    
+    return field1
+    
+def get_outputfield(z2,field1,b,f2,k,x1pts,rr,padding):
+    """
+    the output field calculated with a fft of the input field
+    """
+    
+    I1_xy = conjugate(field1)*field1
+
+    # mask the field - pinhole filter of radius b
+    mask = circ_mask(rr, b)
+    
+    ## compute the 2D fft in xy plane
+
+    # make a phase mask for the fft argument -- this propagates the field a distance z2 from lens f2
+    prop = lambda z2, f2, rr: exp(-1j*k*rr**2*(z2/f2 - 1)/(2*f2)) # = 1 when z2 = f2
+
+    # pad the field with zeros, as well as any other arrays to be used hereafter.
+    field1 = zero_pad(field1*mask, padding) # add the mask here too
+    rr = zero_pad(rr, padding)
+
+    t0 = time()
+    print('f2 - z2 =',f2-z2)
+    field2 = fftshift(fft2(ifftshift(field1*prop(z2, f2, rr)))) # might need a nyquist mask?
+    print(f"calculated field2 in {time()-t0} s")
+
+    # unpad the fields, etc
+    field1 = unpad(field1, padding)
+    field2 = unpad(field2, padding)
+    rr = unpad(rr, padding)
+    
+    return field2,field1
