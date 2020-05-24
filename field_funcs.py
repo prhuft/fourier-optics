@@ -168,3 +168,81 @@ def circ_mask(rgrid, radius):
                 mask[i,j] = 1
                 
     return mask
+    
+    
+def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, aperture=1):
+    """
+    Warning: this will may not work as expected if xnum or ynum is odd
+    Args:
+        xnum: # of spots in x (columns)
+        ynum " " " " y (rows)
+        a: aperture spot radius
+        dx: center-center distance in x
+        dy: " " " " y
+        pts: number of pts in one dimesnsion in the 2D array output. ie output
+            mask is pts x pts
+        pos_std: std for randomness added to spot centers. should be a decimal 
+            representing percentage of 'a', e.g. 0.10 would give normally
+            distributed noise with sigma = 0.10*a
+        phi_std: std for random phase given to each aperture unit cell. units are in 2*pi and phase is sampled from
+            from a normal dist. phi_std = 0.1 would correspond to sigma 0.1*2*pi radians, so there is a 
+            +/- 10% spread of phase over the apertures compared to the plate. Note that to create mask where 
+            this phase is only applied to the spot, plate must be set to 0. after creating the mask with this function,
+            you can then add a constant to offset the transmittance of the whole mask
+        plate: 0 by default; plate transmittance
+        aperture: 1 by default; aperture transmittance
+    Returns: 
+        2D array, xarr: binary mask of spots, and 1D array of real space x coordinates.
+            The realspace full width of the grid 2*w = (max(xnum,ynum) + 1)*dx
+    """
+
+    w = (max(xnum,ynum) + 1)*dx/2 # array real space half-width 
+    res = 2*w/pts # real space distance between adjacent pts
+
+    # make subgrid and build a single aperture mask:
+    subpts = int(2*a/res) # number of pts to make a side length 2*a
+    assert subpts % 2 == 0, "try a slightly different even number of points so that sub-array width is even"
+    
+    sarr,smidpt,srr,sphi = get_meshgrid(a, subpts, polar=True)
+    smask = zeros((subpts,subpts))
+    qd3 = smask[:smidpt,:smidpt]
+    
+    # TODO: fix size of this phase factor
+    if phi_std is not None:
+        phase = lambda :random.normal(0, 2*pi*phi_std) 
+    else:
+        phase = lambda :0
+    
+    for j in range(smidpt):
+        for i in range(smidpt):
+            qd3[i,j] = int(srr[i,j] < a)
+        
+    
+    smask = from_quadrant3(qd3, smask)
+    print(smask.shape)
+
+    # the centroids of the apertures
+    xpts, ypts = get_grid(dx,dy,xnum,ynum)
+    
+    # add noise, optionally
+    if pos_std is not None:
+        # TODO: add noise from a normal dist of sigma = std*a 
+        xpts = array([x + nx for x,nx in zip(xpts,random.normal(0,pos_std,xnum*ynum))])
+        ypts = array([y + ny for y,ny in zip(ypts,random.normal(0,pos_std,xnum*ynum))])
+    
+    # convert centroids to mask indices
+    yidcs = [int((y + w)/res) for y in ypts]
+    xidcs = [int((x + w)/res) for x in xpts]
+
+    midpt = int(pts/2)
+    mask = full((pts, pts), plate, complex)
+
+    # build the mask
+    for i in yidcs:
+        for j in xidcs:
+            mask[i-smidpt:i+smidpt,j-smidpt:j+smidpt] = smask*exp(1j*phase())
+            
+    # real space coordinates
+    xarr = [i*res - w for i in range(pts)]
+            
+    return mask, xarr
