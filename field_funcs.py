@@ -191,7 +191,7 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
         plate: 0 by default; plate transmittance
         aperture: 1 by default; aperture transmittance
     Returns: 
-        2D array, xarr: binary mask of spots, and 1D array of real space x coordinates.
+        2D array, xarr, w: binary mask of spots, 1D array of real space x coordinates, and real space half width.
             The realspace full width of the grid 2*w = (max(xnum,ynum) + 1)*dx
     """
 
@@ -204,21 +204,29 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
     
     sarr,smidpt,srr,sphi = get_meshgrid(a, subpts, polar=True)
     smask = zeros((subpts,subpts))
-    qd3 = smask[:smidpt,:smidpt]
+    bin_mask_outer = copy(smask) # fill with ones outside of the aperture
+    bin_mask_inner = copy(smask) # fill with ones inside of the aperture
     
-    # TODO: fix size of this phase factor
+    # TODO: build binary phase mask component matrices as on the whiteboard
     if phi_std is not None:
-        phase = lambda :random.normal(0, 2*pi*phi_std) 
+        phase = lambda :random.normal(0, 2*pi*phi_std)
     else:
         phase = lambda :0
     
     for j in range(smidpt):
         for i in range(smidpt):
-            qd3[i,j] = int(srr[i,j] < a)
-        
+            transmit = int(srr[i,j] < a)
+            if transmit:
+                smask[i,j] = aperture
+            else:
+                smask[i,j] = plate
+            bin_mask_inner[i,j] = transmit
+            bin_mask_outer[i,j] = 1 - transmit
+                
+    smask = from_quadrant3(smask[:smidpt,:smidpt], smask)
+    bin_mask_inner = from_quadrant3(bin_mask_inner[:smidpt,:smidpt], bin_mask_inner)
+    bin_mask_outer = from_quadrant3(bin_mask_outer[:smidpt,:smidpt], bin_mask_outer)
     
-    smask = from_quadrant3(qd3, smask)
-
     # the centroids of the apertures
     xpts, ypts = get_grid(dx,dy,xnum,ynum)
     
@@ -238,12 +246,12 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
     # build the mask
     for i in yidcs:
         for j in xidcs:
-            mask[i-smidpt:i+smidpt,j-smidpt:j+smidpt] = smask*exp(1j*phase())
+            mask[i-smidpt:i+smidpt,j-smidpt:j+smidpt] = smask*(bin_mask_outer + bin_mask_inner*exp(1j*phase()))
             
     # real space coordinates
-    xarr = [i*res - w for i in range(pts)]
+    xarr = array([i*res - w for i in range(pts)])
             
-    return mask, xarr
+    return mask, xarr, w
     
 def get_fourierfield(dx,dy,xnum,ynum,f1,k,a,x1pts,rr,A0=1): 
     """
