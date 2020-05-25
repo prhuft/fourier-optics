@@ -3,8 +3,11 @@ Quality-of-life functions for my fft and field calculations
 """
 
 ## modules. I don't import all from numpy to avoid subtle problems in importing numpy elsewhere
-from numpy import linspace, meshgrid, sqrt, arctan2, pi, argmax, flip, zeros, append
+from numpy import (array, linspace, meshgrid, argmax, angle, flip, zeros, append, copy, full, random,
+    exp, sqrt, arctan2, pi, amax, amin, conjugate, ones)
+from numpy.fft import fft,fft2,fftshift,ifftshift
 import matplotlib.pyplot as plt
+from time import time
 
 def figax(roi=None, xlabel=None, ylabel=None, aspect='equal'):
     """
@@ -286,28 +289,48 @@ def get_fourierfield(dx,dy,xnum,ynum,f1,k,a,x1pts,rr,A0=1):
     
     return field1
     
-def get_outputfield(z2,field1,b,f2,k,x1pts,rr,padding):
+def lens_xform(z2,field1,b,f,k,x1pts,rr,padding, masked=True):
     """
-    the output field calculated with a fft of the input field
+    Compute the Fourier transform of an optical field by lens f-z2 at a 
+    distance z2 from the back of the lens. Uses numpy fft library
+    
+    Args:
+        z2: distance from lens f
+        field1: the field in front focal plane of the lens
+        b: fourier filter radius. unused if masked=False
+        f: lens focal length
+        k: wavenumber
+        x1pts: real space coordinates in input plane. len(x1pts) = field1.shape[0] or [1]
+        rr: grid of radii coordinates in input plane. same dimensions as field1
+        padding: int, number of rows and cols of zeros to pad onto to field1 before computing the
+            fft. this increases the resolution from ~ 1/field.shape[0] to ~ 1/(field.shape[0]+2*padding)
+        masked: apply a circular filter in the input plane to only transmit the field within a circle of 
+            radius b
+    Return: 
+        field2: 2D array of shape field.shape
+        x2pts: array of points giving the real space coordinates in the output plane
     """
     
-    I1_xy = conjugate(field1)*field1
-
-    # mask the field - pinhole filter of radius b
-    mask = circ_mask(rr, b)
+    assert rr.shape == field1.shape, "rr and field1 must be of same dimensions"
+    
+    # optionally mask the field - pinhole filter of radius b
+    if masked:
+        mask = circ_mask(rr, b)
+    else:
+        mask = ones(rr.shape)
     
     ## compute the 2D fft in xy plane
 
-    # make a phase mask for the fft argument -- this propagates the field a distance z2 from lens f2
-    prop = lambda z2, f2, rr: exp(-1j*k*rr**2*(z2/f2 - 1)/(2*f2)) # = 1 when z2 = f2
+    # make a phase mask for the fft argument -- this propagates the field a distance z2 from lens f
+    prop = lambda z2, f, rr: exp(-1j*k*rr**2*(z2/f - 1)/(2*f)) # = 1 when z2 = f
 
     # pad the field with zeros, as well as any other arrays to be used hereafter.
     field1 = zero_pad(field1*mask, padding) # add the mask here too
     rr = zero_pad(rr, padding)
 
     t0 = time()
-    print('f2 - z2 =',f2-z2)
-    field2 = fftshift(fft2(ifftshift(field1*prop(z2, f2, rr)))) # might need a nyquist mask?
+    print('f - z2 =',f-z2)
+    field2 = fftshift(fft2(ifftshift(field1*prop(z2, f, rr)))) # might need a nyquist mask?
     print(f"calculated field2 in {time()-t0} s")
 
     # unpad the fields, etc
@@ -315,4 +338,6 @@ def get_outputfield(z2,field1,b,f2,k,x1pts,rr,padding):
     field2 = unpad(field2, padding)
     rr = unpad(rr, padding)
     
-    return field2,field1
+    x1pts = array([i*1/(x0pts[1]-x0pts[0])*lmbda*f1/(2*padding + pts) for i in linspace(-pts/2, pts/2, pts)])
+    
+    return field2,x2pts
