@@ -64,8 +64,8 @@ def get_grid(dx,dy,xnum,ynum):
     ypts = []
     for i in range(xnum):
         for j in range(ynum):
-            xpts.append((1+i)*dy - dy*(1+ynum)/2)
-            ypts.append((1+j)*dx - dx*(1+xnum)/2)
+            ypts.append((1+i)*dy - dy*(1+ynum)/2)
+            xpts.append((1+j)*dx - dx*(1+xnum)/2)
     return xpts, ypts
 
 def justify(arr):
@@ -134,6 +134,42 @@ def zero_pad(field, thiccness):
     
     return field
     
+
+def const_pad(field, thiccness, const):
+    """
+    pad the field on each edge with a const value
+    
+    Args:
+        field: 2D array to be padded
+        thiccness: number of rows and columns of zeros to be added to field
+    Returns:
+        2D array of shape (field.shape[0]+2*thiccness, field.shape[1]+2*thiccness)
+    """
+    
+    rows, cols = field.shape
+    # pad left/right edges
+    field = append(field, full((rows, thiccness), const), axis=1)
+    field = append(full((rows, thiccness), const), field, axis=1)
+    # pad top/bottom edges
+    cols = field.shape[1]
+    field = append(field, full((thiccness, cols), const), axis=0)
+    field = append(full((thiccness, cols), const), field, axis=0)
+    
+    return field
+
+def zero_pad(field, thiccness):
+    """
+    pad the field on each edge with zeros
+    
+    Args:
+        field: 2D array to be padded
+        thiccness: number of rows and columns of zeros to be added to field
+    Returns:
+        2D array of shape (field.shape[0]+2*thiccness, field.shape[1]+2*thiccness)
+    """
+
+    return const_pad(field, thiccness, 0)
+    
 def unpad(field, thiccness):
     """
     unpad the field on each edge given the padding thiccness
@@ -198,7 +234,7 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
             The realspace full width of the grid 2*w = (max(xnum,ynum) + 1)*dx
     """
 
-    w = (max(xnum,ynum) + 1)*dx/2 # array real space half-width 
+    w = (max(xnum,ynum) + 1)*max(dx,dy)/2 # array real space half-width 
     res = 2*w/pts # real space distance between adjacent pts
 
     # make subgrid and build a single aperture mask:
@@ -242,14 +278,15 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
     # convert centroids to mask indices
     yidcs = [int((y + w)/res) for y in ypts]
     xidcs = [int((x + w)/res) for x in xpts]
-
+    
+    print(min(yidcs), max(yidcs), min(xidcs), max(xidcs))
+    
     midpt = int(pts/2)
     mask = full((pts, pts), plate, complex)
 
     # build the mask
-    for i in yidcs:
-        for j in xidcs:
-            mask[i-smidpt:i+smidpt,j-smidpt:j+smidpt] = smask*(bin_mask_outer + bin_mask_inner*exp(1j*phase()))
+    for i,j in zip(yidcs,xidcs):
+        mask[i-smidpt:i+smidpt,j-smidpt:j+smidpt] = smask #*(bin_mask_outer + bin_mask_inner*exp(1j*phase()))
             
     # real space coordinates
     xarr = array([i*res - w for i in range(pts)])
@@ -258,7 +295,7 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
     
 def get_fourierfield(dx,dy,xnum,ynum,f1,k,a,x1pts,rr,A0=1): 
     """
-    the analytic fourier field from a periodic aperture array
+    the analytic fourier field from a periodic 2D array of circular apertures
     """
     
     def repeat_phase(x1,y1,dx,dy,xnum,ynum,f1,k):
@@ -289,7 +326,7 @@ def get_fourierfield(dx,dy,xnum,ynum,f1,k,a,x1pts,rr,A0=1):
     
     return field1
     
-def lens_xform(z2,field1,b,f,k,x1pts,rr,padding, masked=True):
+def lens_xform(z2,field1,b,f,k,x1pts,rr,padding,masked=False,padval=0):
     """
     Compute the Fourier transform of an optical field by lens f-z2 at a 
     distance z2 from the back of the lens. Uses numpy fft library
@@ -305,7 +342,8 @@ def lens_xform(z2,field1,b,f,k,x1pts,rr,padding, masked=True):
         padding: int, number of rows and cols of zeros to pad onto to field1 before computing the
             fft. this increases the resolution from ~ 1/field.shape[0] to ~ 1/(field.shape[0]+2*padding)
         masked: apply a circular filter in the input plane to only transmit the field within a circle of 
-            radius b
+            radius b. False by default
+        padval: 
     Return: 
         field2: 2D array of shape field.shape
         x2pts: array of points giving the real space coordinates in the output plane
@@ -313,9 +351,9 @@ def lens_xform(z2,field1,b,f,k,x1pts,rr,padding, masked=True):
     
     assert rr.shape == field1.shape, "rr and field1 must be of same dimensions"
     
-    # optionally mask the field - pinhole filter of radius b
+    # optionally mask the field - circular aperture of radius b
     if masked:
-        mask = circ_mask(rr, b)
+        mask = circ_mask(rr, b) # ones within b, else zeros
     else:
         mask = ones(rr.shape)
     
@@ -324,8 +362,12 @@ def lens_xform(z2,field1,b,f,k,x1pts,rr,padding, masked=True):
     # make a phase mask for the fft argument -- this propagates the field a distance z2 from lens f
     prop = lambda z2, f, rr: exp(-1j*k*rr**2*(z2/f - 1)/(2*f)) # = 1 when z2 = f
 
-    # pad the field with zeros, as well as any other arrays to be used hereafter.
-    field1 = zero_pad(field1*mask, padding) # add the mask here too
+    # pad the field, as well as any other arrays to be used hereafter.
+    if padval == 0:
+        field1 = zero_pad(field1*mask, padding) # add the mask here
+    else:
+        field1 = const_pad(field1*mask, padding, padval)
+        
     rr = zero_pad(rr, padding)
 
     t0 = time()
@@ -338,6 +380,7 @@ def lens_xform(z2,field1,b,f,k,x1pts,rr,padding, masked=True):
     field2 = unpad(field2, padding)
     rr = unpad(rr, padding)
     
-    x1pts = array([i*1/(x0pts[1]-x0pts[0])*lmbda*f1/(2*padding + pts) for i in linspace(-pts/2, pts/2, pts)])
+    pts = len(x1pts)
+    x2pts = array([i*1/(x1pts[1]-x1pts[0])*(2*pi/k)*f/(2*padding + pts) for i in linspace(-pts/2, pts/2, pts)])
     
     return field2,x2pts
