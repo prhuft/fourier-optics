@@ -4,7 +4,7 @@ Quality-of-life functions for my fft and field calculations
 
 ## modules. I don't import all from numpy to avoid subtle problems in importing numpy elsewhere
 from numpy import (array, linspace, meshgrid, argmax, angle, flip, zeros, append, copy, full, random,
-    exp, sqrt, arctan2, pi, amax, amin, conjugate, ones)
+    exp, sqrt, arctan2, pi, amax, amin, conjugate, ones, arange)
 from numpy.fft import fft,fft2,fftshift,ifftshift
 import matplotlib.pyplot as plt
 from time import time
@@ -110,31 +110,7 @@ def from_quadrant3(qd3, field=None):
     field[midx:, :midy] = flip(qd3, axis=0)
     
     return field
-
-
-def zero_pad(field, thiccness):
-    """
-    pad the field on each edge with zeros
     
-    Args:
-        field: 2D array to be padded
-        thiccness: number of rows and columns of zeros to be added to field
-    Returns:
-        2D array of shape (field.shape[0]+2*thiccness, field.shape[1]+2*thiccness)
-    """
-    
-    rows, cols = field.shape
-    # pad left/right edges
-    field = append(field, zeros((rows, thiccness)), axis=1)
-    field = append(zeros((rows, thiccness)), field, axis=1)
-    # pad top/bottom edges
-    cols = field.shape[1]
-    field = append(field, zeros((thiccness, cols)), axis=0)
-    field = append(zeros((thiccness, cols)), field, axis=0)
-    
-    return field
-    
-
 def const_pad(field, thiccness, const):
     """
     pad the field on each edge with a const value
@@ -199,10 +175,17 @@ def circ_mask(rgrid, radius):
     """   
     
     rows,cols = rgrid.shape
+    assert rows == cols, "assumes square matrix. could update this method later"
+    midpt = int(rows/2)
+    res = abs(rgrid[midpt,-1] + rgrid[midpt,0])/rows # [length/pts]
+    
+    pts_halfwidth = int(radius/res) # [pts] 
+    
+    idcs = arange(midpt-pts_halfwidth,midpt+pts_halfwidth,1)
     
     mask = zeros((rows,cols))
-    for i in range(cols):
-        for j in range(rows):
+    for i in idcs:
+        for j in idcs:
             if rgrid[i,j] < radius:
                 mask[i,j] = 1
                 
@@ -286,7 +269,7 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
 
     # build the mask
     for i,j in zip(yidcs,xidcs):
-        mask[i-smidpt:i+smidpt,j-smidpt:j+smidpt] = smask #*(bin_mask_outer + bin_mask_inner*exp(1j*phase()))
+        mask[i-smidpt:i+smidpt,j-smidpt:j+smidpt] = smask*(bin_mask_outer + bin_mask_inner*exp(1j*phase()))
             
     # real space coordinates
     xarr = array([i*res - w for i in range(pts)])
