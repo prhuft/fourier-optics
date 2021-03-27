@@ -281,7 +281,7 @@ def get_fourierfield(dx,dy,xnum,ynum,f1,k,a,x1pts,rr,A0=1):
     the analytic fourier field from a periodic 2D array of circular apertures
     """
     
-    def repeat_phase(x1,y1,dx,dy,xnum,ynum,f1,k):
+    def repeat_phase(x1,y1,dx,dy,xnum,ynum,f1,k,suppress_output=True):
         """
         The sinusoidal factor appearing in the Fourier plane for an input
         field of x (y) periodicity dx (dy)
@@ -309,7 +309,7 @@ def get_fourierfield(dx,dy,xnum,ynum,f1,k,a,x1pts,rr,A0=1):
     
     return field1
     
-def lens_xform(z2,field1,b,f,k,x1pts,rr,padding,masked=False,padval=0):
+def lens_xform(z2,field1,b,f,k,x1pts,rr,padding,masked=False,padval=0,logging=True):
     """
     Compute the Fourier transform of an optical field by lens f-z2 at a 
     distance z2 from the back of the lens. Uses numpy fft library
@@ -354,9 +354,11 @@ def lens_xform(z2,field1,b,f,k,x1pts,rr,padding,masked=False,padval=0):
     rr = zero_pad(rr, padding)
 
     t0 = time()
-    print('f - z2 =',f-z2)
+    
     field2 = fftshift(fft2(ifftshift(field1*prop(z2, f, rr)))) # might need a nyquist mask?
-    print(f"calculated field2 in {time()-t0} s")
+    if logging:
+        print('f - z2 =',f-z2)
+        print(f"calculated field2 in {time()-t0} s")
 
     # unpad the fields, etc
     field1 = unpad(field1, padding)
