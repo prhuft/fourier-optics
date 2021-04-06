@@ -262,7 +262,7 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
     yidcs = [int((y + w)/res) for y in ypts]
     xidcs = [int((x + w)/res) for x in xpts]
     
-    print(min(yidcs), max(yidcs), min(xidcs), max(xidcs))
+    # print(min(yidcs), max(yidcs), min(xidcs), max(xidcs))
     
     midpt = int(pts/2)
     mask = full((pts, pts), plate, complex)
