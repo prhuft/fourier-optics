@@ -6,6 +6,10 @@ Quality-of-life functions for my fft and field calculations
 from numpy import (array, linspace, meshgrid, argmax, angle, flip, zeros, append, copy, full, random,
     exp, sqrt, arctan2, pi, amax, amin, conjugate, ones, arange)
 from numpy.fft import fft,fft2,fftshift,ifftshift
+import numpy as np
+fact = np.math.factorial
+from scipy.special import eval_hermite as Hermite
+from random import random as rand
 import matplotlib.pyplot as plt
 from time import time
 
@@ -369,3 +373,37 @@ def lens_xform(z2,field1,b,f,k,x1pts,rr,padding,masked=False,padval=0,logging=Tr
     x2pts = array([i*1/(x1pts[1]-x1pts[0])*(2*pi/k)*f/(2*padding + pts) for i in linspace(-pts/2, pts/2, pts)])
     
     return field2,x2pts
+
+def hermite_gaussian(m,n,w0):
+    """
+    return a function Amn(x,y) for the amplitude of the 
+    (m,n)th Hermite-Gaussian beam, taking args x,y and 
+    assuming the beam is in focus (z=0) with waist w0.
+    """
+    
+    return lambda x,y: sqrt(2/(pi*2**(m+n)*fact(m)*fact(n)))*(
+                        Hermite(n,sqrt(2)*x/w0)*Hermite(m,sqrt(2)*y/w0)
+                        )*exp(-(x**2+y**2)/w0**2)/w0
+
+def multimode_field(nrange,w0,gridhw,pts):
+    """
+    Returns a Hermite Gaussian multimode field 
+    
+    Args:
+        nrange: maximum mode number. modes will go up H.G.(nrange, nrange)
+        w0: Gaussian waist w0
+        gridhw: the realspace halfwidth of the output grid
+        pts: the number of pixels in 1D; full output will be pts x pts
+    Return:
+        field: the complex field of dimensions of the meshgrid coordinates
+    """
+    field = zeros((pts,pts), complex)
+    _,_,xx,yy = get_meshgrid(gridhw,pts)
+    
+#     if phase == 'white':
+#         phi_func = lambda x: rand()       
+    
+    for n in range(nrange):
+        for m in range(nrange):
+            field += hermite_gaussian(m,n,w0)(xx,yy)*exp(-1j*2*pi*rand())
+    return field
