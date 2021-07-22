@@ -13,7 +13,7 @@ from random import random as rand
 import matplotlib.pyplot as plt
 from time import time
 
-def figax(roi=None, xlabel=None, ylabel=None, aspect='equal'):
+def figax(roi=None, xlabel=None, ylabel=None, aspect='equal',pltargs=[],pltkwargs={}):
     """
     return fig, ax. all params optional
     Args:
@@ -22,7 +22,7 @@ def figax(roi=None, xlabel=None, ylabel=None, aspect='equal'):
         ylabel: None by default
         aspect: equal by default
     """
-    fig,ax = plt.subplots()
+    fig,ax = plt.subplots(*pltargs,**pltkwargs)
     if roi is not None:
         ax.set_xlim(-roi,roi)
         ax.set_ylim(-roi,roi)
@@ -75,7 +75,10 @@ def get_grid(dx,dy,xnum,ynum):
 def justify(arr):
     """
     center an array that goes to zero sufficiently before the endpts
-    returns the centered array. 
+    returns the centered array.  
+    
+    this is not at all a sophisticated method. it assumes a global maximum of 
+    the array should be at the center. 
     
     Args:
         arr: the array to be centered
@@ -226,7 +229,8 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
 
     # make subgrid and build a single aperture mask:
     subpts = int(2*a/res) # number of pts to make a side length 2*a
-    assert subpts % 2 == 0, "try a slightly different even number of points so that sub-array width is even"
+    if not (xnum % 2) or not (ynum % 2):
+        assert subpts % 2 == 0, "try a slightly different even number of points so that sub-array width is even"
     
     sarr,smidpt,srr,sphi = get_meshgrid(a, subpts, polar=True)
     smask = zeros((subpts,subpts))
