@@ -317,6 +317,60 @@ def get_fourierfield(dx,dy,xnum,ynum,f1,k,a,x1pts,rr,A0=1):
     
     return field1
     
+def propagate(z,field1,k,x1pts,rr,padding,padval=0,logging=True):
+    """
+    Free space Fresnel diffraction.
+    
+    Args:
+        z: distance to propagate
+        field1: the field in front focal plane of the lens
+        b: fourier filter radius. unused if masked=False
+        k: wavenumber
+        x1pts: real space coordinates in input plane. len(x1pts) = field1.shape[0] or [1]
+        rr: grid of radii coordinates in input plane. same dimensions as field1
+        padding: int, number of rows and cols of zeros to pad onto to field1 before computing the
+            fft. this increases the resolution from ~ 1/field.shape[0] to ~ 1/(field.shape[0]+2*padding)
+        padval: the value with which to pad. 0 by default.
+    Return: 
+        field2: 2D array of shape field.shape
+        x2pts: array of points giving the real space coordinates in the output plane
+    """
+    
+    assert rr.shape == field1.shape, "rr and field1 must be of same dimensions"
+    
+    mask = ones(rr.shape)
+    
+    ## compute the 2D fft in xy plane
+
+    # make a phase mask for the fft argument -- this propagates the field a distance z2 from lens f
+    prop = lambda z, rr: exp(1j*k*rr**2/(2*z)) #
+
+    # pad the field, as well as any other arrays to be used hereafter.
+    if padval == 0:
+        field1 = zero_pad(field1*mask, padding) # add the mask here
+    else:
+        field1 = const_pad(field1*mask, padding, padval)
+        
+    rr = zero_pad(rr, padding)
+
+    t0 = time()
+    
+    field2 = fftshift(fft2(ifftshift(field1*prop(z, rr)))) # might need a nyquist mask?
+    if logging:
+        print('z =',z)
+        print(f"calculated field2 in {time()-t0} s")
+
+    # unpad the fields, etc
+    field1 = unpad(field1, padding)
+    field2 = unpad(field2, padding)
+    rr = unpad(rr, padding)
+    
+    pts = len(x1pts)
+    x2pts = array([i*1/(x1pts[1]-x1pts[0])*(2*pi/k)*z/(2*padding + pts) for i in linspace(-pts/2, pts/2, pts)])
+    
+    return field2,x2pts
+
+    
 def lens_xform(z2,field1,b,f,k,x1pts,rr,padding,masked=False,padval=0,logging=True):
     """
     Compute the Fourier transform of an optical field by lens f-z2 at a 
