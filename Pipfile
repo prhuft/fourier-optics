@@ -9,6 +9,10 @@ numpy = "*"
 matplotlib = "*"
 sympy = "*"
 scipy = "*"
+diffractio = "*"
+psutil = "*"
+pandas = "*"
+numexpr = "*"
 
 [dev-packages]
 
