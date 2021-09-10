@@ -21,7 +21,6 @@ def soln_to_csv(fname, data, labels, metastr=None):
         labels = ['x', '2x', 'x^2']
     """
     
-    
     if type(data) == np.ndarray:
     # listify to avoid malforming strings
         data = [d for d in data]
