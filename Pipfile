@@ -13,6 +13,7 @@ diffractio = "*"
 psutil = "*"
 pandas = "*"
 numexpr = "*"
+pillow = "*"
 
 [dev-packages]
 

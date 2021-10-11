@@ -34,7 +34,7 @@ def figax(roi=None, xlabel=None, ylabel=None, aspect='equal',pltargs=[],pltkwarg
         ax.set_ylabel(ylabel)
     return fig, ax
     
-def get_meshgrid(w, pts, polar=False):
+def get_meshgrid(w, pts, polar=False, wy=None):
     """
     Args:
         'w': grid half width
@@ -45,7 +45,11 @@ def get_meshgrid(w, pts, polar=False):
     """
     midpt = int(pts/2)
     x = linspace(-w, w, pts)
-    y = linspace(-w, w, pts)
+    if wy is not None:
+        pts_y =  floor((pts/w)*wy+0.5) # keep the same points density in y
+        y = linspace(-wy,w,pts_y)
+    else:
+        y = linspace(-w, w, pts)
     xx, yy = meshgrid(x,y, sparse=True)
     if polar:
         rr = sqrt(xx**2 + yy**2)
