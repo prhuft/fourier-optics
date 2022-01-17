@@ -232,7 +232,7 @@ def spot_mask(xnum, ynum, a, dx, dy, pts, pos_std=None, phi_std=None, plate=0, a
     res = 2*w/pts # real space distance between adjacent pts
 
     # make subgrid and build a single aperture mask:
-    subpts = int(2*a/res) # number of pts to make a side length 2*a
+    subpts = int(2*a/res + 0.5) # number of pts to make a side length 2*a
     if not (xnum % 2) or not (ynum % 2):
         assert subpts % 2 == 0, "try a slightly different even number of points so that sub-array width is even"
     
