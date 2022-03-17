@@ -346,7 +346,7 @@ def propagate(z,field1,k,x1pts,rr,padding,padval=0,logging=True):
     
     ## compute the 2D fft in xy plane
 
-    # make a phase mask for the fft argument -- this propagates the field a distance z2 from lens f
+    # make a phase mask for the fft argument -- this propagates the field a distance z in free space
     prop = lambda z, rr: exp(1j*k*rr**2/(2*z)) #
 
     # pad the field, as well as any other arrays to be used hereafter.
