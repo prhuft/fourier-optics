@@ -1,0 +1,5 @@
+*.png
+diffractio/.ipynb*
+.ipynb*
+diffractio/.ipynb*/*
+*/*.mat
