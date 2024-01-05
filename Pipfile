@@ -14,6 +14,7 @@ psutil = "*"
 pandas = "*"
 numexpr = "*"
 pillow = "*"
+jupyterlab = "*"
 
 [dev-packages]
 
